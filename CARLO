@@ -1,0 +1,228 @@
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local localPlayer = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+
+workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+    camera = workspace.CurrentCamera
+end)
+
+-- INTERFAZ GRÁFICA COMPLETA ORIGINAL
+local gui = Instance.new("ScreenGui")
+gui.Name = "CarlosXit_XenoFix"
+gui.ResetOnSpawn = false
+gui.Parent = localPlayer:WaitForChild("PlayerGui")
+
+local main = Instance.new("Frame", gui)
+main.Size = UDim2.fromOffset(250, 185)
+main.Position = UDim2.new(0.5, -125, 0.5, -92)
+main.BackgroundColor3 = Color3.fromRGB(25, 27, 36)
+main.Active = true
+
+local corner = Instance.new("UICorner", main)
+corner.CornerRadius = UDim.new(0, 10)
+
+local head = Instance.new("TextButton", main)
+head.Size = UDim2.new(1, -70, 0, 35)
+head.BackgroundTransparency = 1
+head.Text = "  CARLOS XIT"
+head.TextColor3 = Color3.fromRGB(100, 210, 255)
+head.TextXAlignment = Enum.TextXAlignment.Left
+head.Font = Enum.Font.SourceSansBold
+
+local function createBtn(txt, y, col)
+    local b = Instance.new("TextButton", main)
+    b.Size = UDim2.new(1, -20, 0, 35)
+    b.Position = UDim2.fromOffset(10, y)
+    b.BackgroundColor3 = col
+    b.Text = txt .. " [OFF]"
+    b.TextColor3 = Color3.new(1, 1, 1)
+    b.Font = Enum.Font.SourceSansBold
+    Instance.new("UICorner", b).CornerRadius = UDim.new(0, 6)
+    return b
+end
+
+local aimBtn = createBtn("AIMBOT", 40, Color3.fromRGB(90, 65, 175))
+local linesBtn = createBtn("LINEAS", 80, Color3.fromRGB(30, 125, 155))
+
+-- MEDIDOR DE FOV (Fijado estrictamente en 50 inicial)
+local FOV = 50
+
+local fovBtn = Instance.new("TextButton", main)
+fovBtn.Size = UDim2.new(1, -20, 0, 35)
+fovBtn.Position = UDim2.fromOffset(10, 120)
+fovBtn.BackgroundColor3 = Color3.fromRGB(45, 50, 65)
+fovBtn.Text = "RANGO FOV: " .. FOV
+fovBtn.TextColor3 = Color3.fromRGB(255, 220, 100)
+fovBtn.Font = Enum.Font.SourceSansBold
+Instance.new("UICorner", fovBtn).CornerRadius = UDim.new(0, 6)
+
+local min, cls = Instance.new("TextButton", main), Instance.new("TextButton", main)
+min.Size, min.Position, min.BackgroundColor3, min.Text, min.TextColor3, min.Font = UDim2.fromOffset(28, 26), UDim2.new(1, -64, 0, 5), Color3.fromRGB(55, 62, 80), "—", Color3.new(1,1,1), Enum.Font.SourceSansBold
+cls.Size, cls.Position, cls.BackgroundColor3, cls.Text, cls.TextColor3, cls.Font = UDim2.fromOffset(28, 26), UDim2.new(1, -33, 0, 5), Color3.fromRGB(190, 55, 70), "X", Color3.new(1,1,1), Enum.Font.SourceSansBold
+Instance.new("UICorner", min).CornerRadius = UDim.new(0, 5)
+Instance.new("UICorner", cls).CornerRadius = UDim.new(0, 5)
+
+local bub = Instance.new("TextButton", gui)
+bub.Size, bub.Position, bub.BackgroundColor3, bub.Text, bub.TextColor3, bub.Font, bub.Visible = UDim2.fromOffset(50, 50), UDim2.new(0, 20, 0.5, -25), Color3.fromRGB(35, 150, 210), "menu", Color3.new(1,1,1), Enum.Font.SourceSansBold, false
+Instance.new("UICorner", bub).CornerRadius = UDim.new(1, 0)
+Instance.new("UIStroke", bub).Color = Color3.fromRGB(150, 225, 255)
+
+min.Activated:Connect(function() main.Visible, bub.Visible = false, true end)
+bub.Activated:Connect(function() bub.Visible, main.Visible = false, true end)
+cls.Activated:Connect(function() gui:Destroy() end)
+
+-- CÍRCULO FOV SUBIDO (Re-centrado perfectamente más arriba)
+local circle = Instance.new("Frame", gui)
+circle.Size = UDim2.fromOffset(FOV * 2, FOV * 2)
+circle.Position = UDim2.new(0.5, -FOV, 0.5, -FOV) -- Centrado puro arriba sin offsets hacia abajo
+circle.BackgroundTransparency = 1
+circle.Visible = false
+Instance.new("UICorner", circle).CornerRadius = UDim.new(1, 0)
+local stroke = Instance.new("UIStroke", circle)
+stroke.Color, stroke.Thickness, stroke.Transparency = Color3.fromRGB(60, 190, 255), 1.5, 0.4
+
+local function updateFOV(newSize)
+    FOV = newSize
+    circle.Size = UDim2.fromOffset(FOV * 2, FOV * 2)
+    circle.Position = UDim2.new(0.5, -FOV, 0.5, -FOV)
+    fovBtn.Text = "RANGO FOV: " .. FOV
+end
+
+fovBtn.Activated:Connect(function()
+    if FOV == 50 then updateFOV(90)
+    elseif FOV == 90 then updateFOV(150)
+    elseif FOV == 150 then updateFOV(200)
+    else updateFOV(50) end
+end)
+
+-- ARRASTRE
+local function drag(o, area)
+    local d, start, sPos
+    area.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType.Touch then d, start, sPos = true, i.Position, o.Position end end)
+    UserInputService.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType.Touch then d = false end end)
+    UserInputService.InputChanged:Connect(function(i) if d and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType.Touch) then local del = i.Position - start o.Position = UDim2.new(sPos.X.Scale, sPos.X.Offset + del.X, sPos.Y.Scale, sPos.Y.Offset + del.Y) end end)
+end
+drag(main, head) drag(bub, bub)
+
+-- INTERRUPTORES
+local aEn, lEn = false, false
+aimBtn.Activated:Connect(function()
+    aEn = not aEn
+    aimBtn.Text = "AIMBOT [" .. (aEn and "ON" or "OFF") .. "]"
+    circle.Visible = aEn
+end)
+
+local visualFolder = Instance.new("Folder", gui)
+visualFolder.Name = "Xeno_Lines"
+
+linesBtn.Activated:Connect(function()
+    lEn = not lEn
+    linesBtn.Text = "LINEAS [" .. (lEn and "ON" or "OFF") .. "]"
+    if not lEn then visualFolder:ClearAllChildren() end
+end)
+
+-- SELECCIÓN FILTRADA CENTRADA DE NUEVO
+local function getClosest()
+    local char = localPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return nil end
+    
+    local closest, best = nil, math.huge
+    local center = camera.ViewportSize / 2
+    
+    for _, o in ipairs(Players:GetPlayers()) do
+        if o ~= localPlayer and o.Character then
+            local targetChar = o.Character
+            local headPart = targetChar:FindFirstChild("Head")
+            local hum = targetChar:FindFirstChildOfClass("Humanoid")
+            local hrp = targetChar:FindFirstChild("HumanoidRootPart")
+            
+            if headPart and hum and hrp and hrp.Position.Y > -40 and hum.Health > 0 then
+                local sPos, on = camera:WorldToViewportPoint(headPart.Position)
+                if on then
+                    local d = (Vector2.new(sPos.X, sPos.Y) - center).Magnitude
+                    if d <= FOV and d < best then
+                        best, closest = d, headPart
+                    end
+                end
+            end
+        end
+    end
+    return closest
+end
+
+-- MULTIPLICADOR DE ENTRADA EFECTIVO ORIGINAL (0.40)
+local Smoothness = 0.40
+
+-- BUCLE CENTRAL ESTABILIZADO ANTI-CRASH PARA EL MOTOR DE APUNTADO
+RunService.RenderStepped:Connect(function()
+    if not camera or not gui.Parent then return end
+    
+    -- El Aimbot preciso recuperado trabajando sobre deltas seguros
+    if aEn then
+        local t = getClosest()
+        if t then
+            local sPos, on = camera:WorldToViewportPoint(t.Position)
+            if on then
+                local center = camera.ViewportSize / 2
+                local mouseX = sPos.X - center.X
+                local mouseY = sPos.Y - center.Y
+                
+                -- Envío seguro para Xeno evitando crasheos usando delta delta
+                if mousemoverel then
+                    pcall(function()
+                        mousemoverel(mouseX * Smoothness, mouseY * Smoothness)
+                    end)
+                else
+                    -- Fallback súper firme de respaldo
+                    local targetCFrame = CFrame.lookAt(camera.CFrame.Position, t.Position)
+                    camera.CFrame = camera.CFrame:Lerp(targetCFrame, 0.25)
+                end
+            end
+        end
+    end
+    
+    -- ESP de Líneas
+    if lEn then
+        local currentFrames = visualFolder:GetChildren()
+        local frameIndex = 1
+        local centerBottom = Vector2.new(camera.ViewportSize.X / 2, camera.ViewportSize.Y)
+        
+        for _, o in ipairs(Players:GetPlayers()) do
+            if o ~= localPlayer and o.Character then
+                local hrp = o.Character:FindFirstChild("HumanoidRootPart")
+                local hum = o.Character:FindFirstChildOfClass("Humanoid")
+                
+                if hrp and hum and hum.Health > 0 then
+                    local sPos, on = camera:WorldToViewportPoint(hrp.Position)
+                    if on then
+                        local targetPos = Vector2.new(sPos.X, sPos.Y)
+                        local distance = (targetPos - centerBottom).Magnitude
+                        
+                        local lineFrame = currentFrames[frameIndex]
+                        if not lineFrame then
+                            lineFrame = Instance.new("Frame", visualFolder)
+                            lineFrame.BorderSizePixel = 0
+                            lineFrame.BackgroundColor3 = Color3.fromRGB(40, 220, 255)
+                        end
+                        
+                        lineFrame.Size = UDim2.fromOffset(distance, 1.5)
+                        lineFrame.Position = UDim2.fromOffset((centerBottom.X + targetPos.X) / 2 - distance / 2, (centerBottom.Y + targetPos.Y) / 2)
+                        lineFrame.Rotation = math.deg(math.atan2(targetPos.Y - centerBottom.Y, targetPos.X - centerBottom.X))
+                        lineFrame.Visible = true
+                        
+                        frameIndex = frameIndex + 1
+                    end
+                end
+            end
+        end
+        
+        for i = frameIndex, #currentFrames do
+            currentFrames[i].Visible = false
+        end
+    else
+        visualFolder:ClearAllChildren()
+    end
+end)
